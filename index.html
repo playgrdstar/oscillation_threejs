@@ -1,6 +1,6 @@
 <!-- Gary Ang | Ming | playgrd -->
 <!-- three.js port of Daniel Shiffman's Nature of Code Chapter 2-->
-<!-- Multiple forces -->
+<!-- Oscillation -->
 
 <!DOCTYPE html>
 <html lang="en">
@@ -23,11 +23,9 @@
             var p5 = new p5();
 
             var scene = new THREE.Scene();
-            var camera = new THREE.PerspectiveCamera( 100, window.innerWidth / window.innerHeight, 0.1, 1000 );
-            // var camera = new THREE.OrthographicCamera( 0,50,0,50, 0.1,1000 );
-            camera.position.z = 125;
-            camera.position.x = 50;
-            camera.position.y = 50;
+            var camera = new THREE.PerspectiveCamera( 1000, window.innerWidth / window.innerHeight, 0.1, 1000 );
+            // var camera = new THREE.OrthographicCamera( 0,50,0,50, 0.1, 1000 );
+            camera.position.z = 25;
 
             var renderer = new THREE.WebGLRenderer( { antialias: true } );
             renderer.setPixelRatio( window.devicePixelRatio );
@@ -38,53 +36,35 @@
             var orbit = new THREE.OrbitControls( camera, renderer.domElement );
             orbit.enableZoom = false;
 
-            var ambientLight  = new THREE.AmbientLight( '#00FFFF' ),
-                hemiLight     = new THREE.HemisphereLight('#D63AF9', '#2F1847', 0 ),
-                light         = new THREE.PointLight( '#D63AF9', 1, 100 );
+            var ambientLight  = new THREE.AmbientLight( '#D63AF9', 100),
+                hemiLight     = new THREE.HemisphereLight('#D63AF9', '#2F1847', 1),
+                light         = new THREE.PointLight( '#D63AF9', 10, 100 );
 
             ambientLight.position.set( 0, 0, 0 );
-            hemiLight.position.set( 0, 0, 0 );
-            light.position.set( 0, 0, 10 );
-
-            scene.add( ambientLight ); 
-            scene.add( hemiLight );
-            scene.add( light );
+            hemiLight.position.set( 10, 10, 10 );
+            light.position.set( 10, 10, 10 );
 
             var group = new THREE.Group();
 
-            // Box added to show the boundaries
-            // Box x, y and z positions indicate the centre, not the corner
-            var geometry = new THREE.BoxGeometry(50,50,50);
-            // geometry.center();
-            var material = new THREE.MeshToonMaterial({ color: 0xFFB4E0, opacity:0.6, transparent:true, wireframe:true, emissive: 0xFFB4E0,emissiveIntensity:0.01} );
-            var box = new THREE.Mesh(geometry, material);
-            box.position.x = 25;
-            box.position.y = 25;
-            box.position.z = 25;
-            group.add(box);
+            var circle = new Circle(0,0,8);
 
-            mover = new Mover();
-            mover.display();
-            mover.initialise();
 
             scene.add( group );
 
             var prevFog = true;
 
-            var wind = new THREE.Vector3(1,0,0);
-            var gravity = new THREE.Vector3(0,10,0);
-
+            var id;
 
             var render = function () {
 
-                requestAnimationFrame( render );
-                mover.display();
-                mover.applyForce(wind);
-                mover.applyForce(gravity);
-                mover.update();
-                mover.checkEdges();
+                id = requestAnimationFrame( render );
+                orbit.update();
+
+                circle.update();
+                circle.display();
+                
                 // group.rotation.x += 0.002;
-                // group.rotation.y += 0.002;
+                group.rotation.y += 0.002;
                 // group.rotation.z += 0.002;
 
                 renderer.render( scene, camera );
@@ -102,80 +82,41 @@
 
             render();
 
-            function Mover() {
-                this.position = new THREE.Vector3();
-                this.velocity = new THREE.Vector3();
-                this.acceleration = new THREE.Vector3();
-                this.max = new THREE.Vector3(100,100,100);
-                this.min = new THREE.Vector3(-100,-100,-100);
-                this.mass = 10;
+            function Circle(x,y,r) {
 
-                var geometry = new THREE.SphereGeometry(2,10,10);
-                var material = new THREE.MeshToonMaterial({ color: 0x624763, opacity:0.5, transparent:true, wireframe:true, emissive: 0x624763,emissiveIntensity:1} );
+                this.x = x;
+                this.y = y;
+                this.r = r;
+                this.position = new THREE.Vector3();
+                this.origin = new THREE.Vector3(this.x,this.y,0);
+                this.aVelocity = 0.0;
+                this.aAcceleration = 0.0;
+                this.angle = Math.PI/4;
+                this.damping = 0.99;
+
+                this.ballr = 1;
+
+                var geometry = new THREE.SphereGeometry(this.ballr,25,25);
+                var material = new THREE.MeshPhongMaterial({ color: 0x9C1981, opacity:1.0, transparent:true, wireframe:true, emissive: 0x9C1981,emissiveIntensity:0.95} );
                 var sphere = new THREE.Mesh(geometry, material);
                 group.add(sphere);
 
-                this.initialise = function() {
-                    this.position.x = 25;
-                    this.position.y = 25;
-                    this.position.z = 25;
-                    this.velocity.x = 0.5;
-                    this.velocity.y = 0.3;
-                    this.velocity.z = 0.03;
-                    this.acceleration.x = 0.01;
-                    this.acceleration.y = 0.01; 
-                    this.acceleration.z = 0.001;                    
-                }
-
-                this.applyForce = function(force){
-                    var f = force.divideScalar(this.mass);
-                    this.acceleration.add(f);
-                }
-
-
                 this.update = function() {
-                    
-                    this.velocity.add(this.acceleration);
-                    this.velocity.clamp(this.min, this.max);
-                    this.position.add(this.velocity);
-                    this.acceleration.multiplyScalar(0);
+                      var gravity = 5;
+                      // this.aAcceleration = (-1 * gravity / this.r) * sin(this.angle);
+                      this.aAcceleration = 0.0005;
+                      this.aVelocity += this.aAcceleration;
+                      this.aVelocity *= this.damping;
+                      this.angle += this.aVelocity;
+                };
 
-                }
-
-                this.display = function(){
-                    sphere.position.x = this.position.x;
-                    sphere.position.y = this.position.y;
-                    sphere.position.z = this.position.z;
-                }
-
-                this.checkEdges = function() {
-
-                    if (this.position.x > 50){
-                        this.position.x = 50;
-                        this.velocity.x *= -1;
-                    }
-                    else if (this.position.x < 0){
-                        this.position.x = 0;
-                        this.velocity.x *= -1;
-                    }
-
-                    if (this.position.y > 50){
-                        this.position.y = 50;
-                        this.velocity.y *= -1;
-                    }
-                    else if (this.position.y < 0){
-                        this.position.y = 0;
-                        this.velocity.y *= -1;
-                    }
-                    if (this.position.z > 50){
-                        this.position.z = 50;
-                        this.velocity.z *= -1;
-                    }
-                    else if (this.position.z < 0){
-                        this.position.z = 0;
-                        this.velocity.z *= -1;
-                    }                         
-                }
+                this.display = function() {
+                this.position.set(this.r*sin(this.angle), this.r*cos(this.angle),0);
+                this.position.add(this.origin);
+                sphere.position.x = this.position.x;
+                sphere.position.y = this.position.y;
+                sphere.position.z = this.position.z;
+                };
 
             }
 
